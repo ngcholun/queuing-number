@@ -5,45 +5,42 @@
   <title>Queue Display & Admin</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; margin: 0; background: #fff; }
+    body { 
+      font-family: Arial, sans-serif; 
+      text-align: center; 
+      margin: 0; 
+      background: #008000;   /* ✅ Green background */
+      color: #ffffff;        /* ✅ White text */
+    }
 
     /* Instructions */
     .instructions { padding: 20px 20px 10px; line-height: 1.4; }
-    .instructions .cn {
-      display: block;
-      font-size: 3.5rem;
-      font-weight: bold;
-    }
-    .instructions .en {
-      display: block;
-      font-size: 3rem;
-      margin-top: 10px;
-    }
+    .instructions .cn { display: block; font-size: 3.5rem; font-weight: bold; }
+    .instructions .en { display: block; font-size: 3rem; margin-top: 10px; }
 
-    /* Queue Numbers */
+    /* Queue numbers */
     .queue-box { margin-top: 20px; }
-    .queue-number {
-      font-size: 14vw;
-      font-weight: bold;
-      color: #222;
-      margin: 30px 0;
-    }
+    .queue-number { font-size: 14vw; font-weight: bold; margin: 30px 0; }
 
-    .spacer { height: 120vh; }
+    .spacer { height: 100vh; }
 
+    /* Admin toggle button */
     .admin-toggle { margin-top: 20px; }
     .admin-toggle button { padding: 10px 20px; font-size: 1rem; cursor: pointer; }
 
+    /* Admin panel */
     .admin-panel {
       margin-top: 30px; padding: 20px;
-      border:2px solid #ccc; border-radius:6px;
+      border:2px solid #fff; border-radius:6px;
       max-width:400px; margin-left:auto; margin-right:auto;
       text-align:left; display:none;
+      background: rgba(0,0,0,0.3); /* slightly darker background for readability */
     }
-    .admin-inputs { display: flex; gap: 10px; }
-    .admin-panel input { padding: 10px; margin-top: 5px; flex:1; font-size:1rem; }
-    .admin-panel button { padding: 10px 20px; font-size:1rem; margin-top: 15px; cursor:pointer; }
+    .admin-inputs { display:flex; gap:10px; margin:5px 0; }
+    .admin-panel input { flex:1; padding:10px; font-size:1rem; }
+    .admin-panel button { padding:10px 20px; margin-top:15px; font-size:1rem; cursor:pointer; }
 
+    /* Password modal */
     .modal {
       position:fixed; top:0; left:0; right:0; bottom:0;
       background:rgba(0,0,0,0.5);
@@ -51,13 +48,16 @@
       z-index:1000;
     }
     .modal-box {
-      background:#fff; padding:20px; border-radius:6px;
+      background:#006400; /* dark green for modal */
+      color:#fff;
+      padding:20px; border-radius:6px;
       max-width:300px; text-align:center;
     }
     .modal-box input { width:100%; padding:10px; margin-top:10px; font-size:1rem; }
     .modal-box .buttons { margin-top:15px; display:flex; gap:10px; justify-content:center; }
-    .modal-box button { padding: 10px 20px; }
+    .modal-box button { padding:10px 20px; cursor:pointer; }
 
+    /* Notification */
     .notification {
       position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
       background:#4caf50; color:#fff; padding:12px 20px; border-radius:4px;
@@ -66,22 +66,26 @@
   </style>
 </head>
 <body>
+  <!-- Instructions -->
   <h1 class="instructions">
     <span class="cn">以下電子排隊號碼請進入等候區等候</span>
     <span class="en">People with the below queuing number may enter the waiting area.</span>
   </h1>
 
+  <!-- Queue display -->
   <div class="queue-box">
-    <div class="queue-number" id="queueA">A1 - 10</div>
-    <div class="queue-number" id="queueB">B1 - 10</div>
+    <div class="queue-number" id="queueA">A--</div>
+    <div class="queue-number" id="queueB">B--</div>
   </div>
 
   <div class="spacer"></div>
 
+  <!-- Toggle Admin button -->
   <div class="admin-toggle">
     <button onclick="requestAccess()">Show/Hide Admin Panel</button>
   </div>
 
+  <!-- Admin panel -->
   <div class="admin-panel" id="adminPanel">
     <h2>Admin Panel</h2>
     <label>Queue A:
@@ -99,6 +103,7 @@
     <button onclick="updateQueues()">Update</button>
   </div>
 
+  <!-- Password modal -->
   <div class="modal" id="passwordModal">
     <div class="modal-box">
       <h2>Enter Admin Password</h2>
@@ -110,12 +115,16 @@
     </div>
   </div>
 
+  <!-- Notification -->
   <div class="notification" id="notificationBox"></div>
 
-  <script>
+  <!-- Firebase logic -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
     const ADMIN_PASSWORD = "np360";
 
-    // 🔑 Firebase config (not hooked yet, just defined here)
     const firebaseConfig = {
       apiKey: "AIzaSyAAcNoSDXrkoDu5z3Kbg4vVAZ3KdVBUEeU",
       authDomain: "queuing-number-display.firebaseapp.com",
@@ -126,36 +135,44 @@
       appId: "1:801768172606:web:65a8c5185db4e0576c356f"
     };
 
-    // Local state
-    let queues = {
-      queueA: "1 - 10",
-      queueB: "1 - 10"
-    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const queuesRef = ref(db, "queues");
 
-    function render() {
-      document.getElementById("queueA").innerText = "A" + queues.queueA;
-      document.getElementById("queueB").innerText = "B" + queues.queueB;
-    }
+    onValue(queuesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+      if (data.queueA) document.getElementById("queueA").innerText = "A" + data.queueA;
+      if (data.queueB) document.getElementById("queueB").innerText = "B" + data.queueB;
+    });
 
-    function updateQueues() {
+    window.updateQueues = function() {
       const aStart = document.getElementById("inputAStart").value.trim();
       const aEnd = document.getElementById("inputAEnd").value.trim();
       const bStart = document.getElementById("inputBStart").value.trim();
       const bEnd = document.getElementById("inputBEnd").value.trim();
 
-      if (aStart && aEnd) queues.queueA = `${aStart} - ${aEnd}`;
-      if (bStart && bEnd) queues.queueB = `${bStart} - ${bEnd}`;
+      let newData = {};
+      if (aStart && aEnd) newData.queueA = `${aStart} - ${aEnd}`;
+      if (bStart && bEnd) newData.queueB = `${bStart} - ${bEnd}`;
 
-      render();
-      showNotification("✅ Queue updated!");
-    }
+      if (Object.keys(newData).length > 0) {
+        update(queuesRef, newData)
+          .then(() => showNotification("✅ Queue updated"))
+          .catch((err) => showNotification("❌ Failed: " + err.message, true));
+      }
+    };
 
-    function requestAccess() {
+    window.requestAccess = function() {
       const panel = document.getElementById("adminPanel");
-      panel.style.display = panel.style.display === "block" ? "none" : "flex";
-    }
+      if (panel.style.display === "block") {
+        panel.style.display = "none";
+      } else {
+        document.getElementById("passwordModal").style.display = "flex";
+      }
+    };
 
-    function checkPassword() {
+    window.checkPassword = function() {
       const input = document.getElementById("passwordInput").value;
       if (input === ADMIN_PASSWORD) {
         document.getElementById("passwordModal").style.display = "none";
@@ -165,23 +182,20 @@
         document.getElementById("passwordInput").value = "";
         showNotification("❌ Wrong password", true);
       }
-    }
+    };
 
-    function cancelPassword() {
+    window.cancelPassword = function() {
       document.getElementById("passwordInput").value = "";
       document.getElementById("passwordModal").style.display = "none";
-    }
+    };
 
     function showNotification(message, isError=false) {
       const box = document.getElementById("notificationBox");
       box.innerText = message;
       box.style.background = isError ? "#f44336" : "#4caf50";
       box.style.display = "block";
-      setTimeout(() => box.style.display = "none", 2500);
+      setTimeout(() => box.style.display = "none", 2000);
     }
-
-    // Initial render
-    render();
   </script>
 </body>
 </html>
